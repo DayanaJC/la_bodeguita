@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // ✅ Import necesario para signOut
+import 'package:firebase_auth/firebase_auth.dart';
 import 'productos_screen.dart';
 import 'clientes_screen.dart';
 import 'proveedores_screen.dart';
 import 'auth_screen.dart';
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  // 🔹 Cierra sesión automáticamente al abrir la app
+  // Cierra sesión cada vez que se abre la app para permitir crear/usar otra cuenta
   await FirebaseAuth.instance.signOut();
 
   runApp(MyApp());
@@ -49,7 +50,6 @@ class _SplashScreenState extends State<SplashScreen>
         if (progress >= 100) {
           progress = 100;
           _timer.cancel();
-
           if (mounted) {
             Future.delayed(const Duration(milliseconds: 400), () {
               if (mounted) {
@@ -122,20 +122,56 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late int _selectedIndex;
+  Map<String, dynamic>? usuarioData;
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
+    usuarioData = widget.usuarioData;
+    _cargarUsuarioSiExiste();
+  }
+
+  Future<void> _cargarUsuarioSiExiste() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() => usuarioData = null);
+      return;
+    }
+
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('Usuarios')
+          .doc(user.uid)
+          .get();
+
+      if (snap.exists) {
+        setState(() => usuarioData = snap.data());
+      } else {
+        setState(() {
+          usuarioData = {
+            'nombre': user.displayName ?? 'Usuario',
+            'email': user.email ?? '',
+            'uid': user.uid,
+          };
+        });
+      }
+    } catch (e) {
+      // ignore errores menores
+    }
+  }
+
+  void _onTapNav(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final usuario = widget.usuarioData;
-
     final List<Widget> _pages = [
       ProductosScreen(),
-      ClientesScreen(usuarioData: usuario),
+      ClientesScreen(usuarioData: usuarioData),
       ProveedoresScreen(),
     ];
 
@@ -143,7 +179,7 @@ class _HomePageState extends State<HomePage> {
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
-        onTap: (i) => setState(() => _selectedIndex = i),
+        onTap: _onTapNav,
         selectedItemColor: Colors.teal,
         items: const [
           BottomNavigationBarItem(
@@ -151,7 +187,7 @@ class _HomePageState extends State<HomePage> {
             label: 'Productos',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.people),
+            icon: Icon(Icons.person),
             label: 'Perfil',
           ),
           BottomNavigationBarItem(

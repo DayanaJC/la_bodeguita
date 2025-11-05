@@ -83,10 +83,10 @@ class _PagoScreenState extends State<PagoScreen> {
         'productos': widget.productos,
       };
 
-      // ✅ Guardar pedido
+      // Guardar pedido
       await _firestore.collection('Usuarios').doc(uid).collection('Pedidos').add(pedidoData);
 
-      // ✅ Vaciar carrito Firestore
+      // Vaciar carrito Firestore (si usas subcolección 'Carrito')
       final carrito = await _firestore
           .collection('Usuarios')
           .doc(uid)
@@ -97,12 +97,12 @@ class _PagoScreenState extends State<PagoScreen> {
         await doc.reference.delete();
       }
 
-      // ✅ Vaciar carrito LOCAL
+      // Vaciar carrito LOCAL
       carritoGlobal.clear();
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text("Pedido confirmado 🎉"),
+          content: const Text("Pedido confirmado"),
           backgroundColor: Colors.teal,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -110,14 +110,15 @@ class _PagoScreenState extends State<PagoScreen> {
         ),
       );
 
+      // Obtener datos usuario actualizados para pasarlos al perfil
       final usuarioDoc = await _firestore.collection('Usuarios').doc(uid).get();
-      final usuarioData = usuarioDoc.exists ? usuarioDoc.data() : {'uid': uid};
+      final usuarioData = usuarioDoc.exists ? usuarioDoc.data() : {'uid': uid, 'email': _auth.currentUser!.email ?? ''};
 
-      // ✅ Volver a Home y refrescar todo
+      // Volver al Home pero en la pestaña Perfil (index 1) y pasar usuarioData
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => HomePage(initialIndex: 0, usuarioData: usuarioData),
+          builder: (_) => HomePage(initialIndex: 1, usuarioData: usuarioData),
         ),
         (route) => false,
       );
@@ -146,12 +147,11 @@ class _PagoScreenState extends State<PagoScreen> {
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            // ---------------- USER CARD ----------------
+            // USER CARD
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -181,7 +181,7 @@ class _PagoScreenState extends State<PagoScreen> {
             ),
             const SizedBox(height: 14),
 
-            // ---------------- PRODUCT LIST ----------------
+            // PRODUCT LIST
             Expanded(
               child: ListView.builder(
                 itemCount: widget.productos.length,
@@ -223,7 +223,7 @@ class _PagoScreenState extends State<PagoScreen> {
               ),
             ),
 
-            // ---------------- TOTALS ----------------
+            // TOTALS
             Column(
               children: [
                 _rowTotal("Subtotal", widget.subtotal),
@@ -235,7 +235,7 @@ class _PagoScreenState extends State<PagoScreen> {
 
             const SizedBox(height: 14),
 
-            // ---------------- BUTTON ----------------
+            // BUTTON
             ElevatedButton(
               onPressed: _processing ? null : _mostrarConfirmacionPago,
               style: ElevatedButton.styleFrom(
